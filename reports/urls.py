@@ -8,4 +8,5 @@ from . import views
 
 urlpatterns = [
     path("", views.index),
+    path("api/issues/", views.IssueUploadView.as_view()),
 ]
