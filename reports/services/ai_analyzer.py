@@ -6,6 +6,8 @@ Replace the mock delegation with your AI provider (vision API, etc.)
 when ready. Do not hardcode API keys; use environment or settings.
 """
 
+from reports.categories import get_main_category_labels
+
 from .ai_mock import analyze_image as _mock_analyze_image
 
 
@@ -19,6 +21,8 @@ def analyze_image(image_path):
     Returns:
         dict with keys: main_category, sub_category, severity, risks, description.
     """
+    # TODO: When building the prompt, use get_main_category_labels() so the
+    # model chooses from the canonical list (reports.categories).
     # TODO: Load AI provider config from env/settings (no keys in code).
     # TODO: Define prompts in a dedicated module, e.g. services/prompts.py.
     # TODO: Call real vision API here:

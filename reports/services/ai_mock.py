@@ -2,7 +2,10 @@
 Mock AI image analysis service for development and testing.
 
 Returns a fixed classification; no external APIs are called.
+Uses reports.categories for consistent main category labels.
 """
+
+from reports.categories import MAIN_CATEGORIES
 
 
 def analyze_image(image_path):
@@ -15,8 +18,9 @@ def analyze_image(image_path):
     Returns:
         dict: main_category, sub_category, severity, risks, description.
     """
+    roads = next(c for c in MAIN_CATEGORIES if c["key"] == "roads_transport")
     return {
-        "main_category": "Roads & Transport",
+        "main_category": roads["label"],
         "sub_category": "Pothole",
         "severity": "high",
         "risks": ["safety"],
