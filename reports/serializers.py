@@ -5,7 +5,7 @@ Serializers for the reports app.
 from rest_framework import serializers
 
 from .models import CommunityIssue
-from .services.ai_mock import analyze_image
+from .services.ai_analyzer import analyze_image
 from .utils import extract_gps_from_image
 
 
