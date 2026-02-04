@@ -5,6 +5,7 @@ Serializers for the reports app.
 from rest_framework import serializers
 
 from .models import CommunityIssue
+from .services.ai_mock import analyze_image
 from .utils import extract_gps_from_image
 
 
@@ -38,5 +39,22 @@ class CommunityIssueSerializer(serializers.ModelSerializer):
         if lat is not None and lon is not None:
             instance.latitude = lat
             instance.longitude = lon
-            instance.save(update_fields=["latitude", "longitude"])
+
+        analysis = analyze_image(instance.image.path)
+        instance.main_category = analysis["main_category"]
+        instance.sub_category = analysis["sub_category"]
+        instance.severity = analysis["severity"]
+        instance.risks = analysis["risks"]
+        instance.description = analysis["description"]
+
+        update_fields = [
+            "main_category",
+            "sub_category",
+            "severity",
+            "risks",
+            "description",
+        ]
+        if lat is not None and lon is not None:
+            update_fields.extend(["latitude", "longitude"])
+        instance.save(update_fields=update_fields)
         return instance
