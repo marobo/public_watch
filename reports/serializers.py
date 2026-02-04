@@ -5,6 +5,7 @@ Serializers for the reports app.
 from rest_framework import serializers
 
 from .models import CommunityIssue
+from .utils import extract_gps_from_image
 
 
 class CommunityIssueSerializer(serializers.ModelSerializer):
@@ -24,7 +25,7 @@ class CommunityIssueSerializer(serializers.ModelSerializer):
         return obj.image.url if obj.image else None
 
     def create(self, validated_data):
-        return CommunityIssue.objects.create(
+        instance = CommunityIssue.objects.create(
             image=validated_data["image"],
             status="new",
             main_category="",
@@ -33,3 +34,9 @@ class CommunityIssueSerializer(serializers.ModelSerializer):
             risks=[],
             description="",
         )
+        lat, lon = extract_gps_from_image(instance.image.path)
+        if lat is not None and lon is not None:
+            instance.latitude = lat
+            instance.longitude = lon
+            instance.save(update_fields=["latitude", "longitude"])
+        return instance
