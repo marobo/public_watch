@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token }}">
   <title>Report an issue — Public Watch</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <style>
     * { box-sizing: border-box; }
     body {
@@ -39,6 +40,12 @@
     .result img { max-width: 100%; height: auto; border-radius: 4px; margin-top: 0.5rem; }
     .loading { color: #666; }
     .error { color: #c00; margin-top: 1rem; }
+    #map-section { display: none; margin-top: 1.5rem; }
+    #map-section.visible { display: block; }
+    #map { height: 240px; width: 100%; border-radius: 4px; margin-top: 0.5rem; }
+    .map-hint { font-size: 0.9rem; color: #555; margin-bottom: 0.5rem; }
+    #save-location-btn { margin-top: 0.75rem; }
+    .location-feedback { font-size: 0.9rem; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
@@ -73,6 +80,15 @@
     </dl>
   </section>
 
+  <section id="map-section" class="map-section">
+    <h2 style="font-size: 1.2rem; margin-top: 0;">Location</h2>
+    <p id="map-hint" class="map-hint"></p>
+    <div id="map"></div>
+    <button type="button" id="save-location-btn" style="display: none;">Save Location</button>
+    <p id="location-feedback" class="location-feedback" style="display: none;"></p>
+  </section>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     (function () {
       var form = document.getElementById('upload-form');
@@ -86,6 +102,16 @@
       var resultCategory = document.getElementById('result-category');
       var resultSeverity = document.getElementById('result-severity');
       var resultDescription = document.getElementById('result-description');
+      var mapSection = document.getElementById('map-section');
+      var mapHint = document.getElementById('map-hint');
+      var saveLocationBtn = document.getElementById('save-location-btn');
+      var locationFeedback = document.getElementById('location-feedback');
+
+      var currentIssueId = null;
+      var selectedLat = null;
+      var selectedLon = null;
+      var map = null;
+      var marker = null;
 
       function getCsrfToken() {
         var meta = document.querySelector('meta[name="csrf-token"]');
@@ -150,6 +176,8 @@
             resultSeverity.textContent = '—';
             resultDescription.textContent = '—';
             resultSection.classList.add('visible');
+            currentIssueId = data.id;
+            initMap(data.latitude, data.longitude);
           })
           .catch(function (err) {
             showError(err.message || 'Something went wrong.');
@@ -157,6 +185,86 @@
           .finally(function () {
             submitBtn.disabled = false;
             loading.style.display = 'none';
+          });
+      });
+
+      function initMap(lat, lon) {
+        mapSection.classList.add('visible');
+        locationFeedback.style.display = 'none';
+        locationFeedback.textContent = '';
+        if (map) {
+          map.remove();
+          map = null;
+          marker = null;
+        }
+        var hasExisting = lat != null && lon != null && !isNaN(lat) && !isNaN(lon);
+        var center = hasExisting ? [lat, lon] : [20, 0];
+        var zoom = hasExisting ? 14 : 2;
+        map = L.map('map').setView(center, zoom);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+        function onMapClick(e) {
+          if (marker) map.removeLayer(marker);
+          marker = L.marker(e.latlng).addTo(map);
+          selectedLat = e.latlng.lat;
+          selectedLon = e.latlng.lng;
+          saveLocationBtn.style.display = 'inline-block';
+          saveLocationBtn.disabled = false;
+        }
+        if (hasExisting) {
+          selectedLat = lat;
+          selectedLon = lon;
+          marker = L.marker([lat, lon]).addTo(map);
+          mapHint.textContent = 'Location from photo. Click the map to move the marker, then Save Location.';
+          saveLocationBtn.style.display = 'inline-block';
+          saveLocationBtn.disabled = false;
+          map.on('click', onMapClick);
+        } else {
+          selectedLat = null;
+          selectedLon = null;
+          mapHint.textContent = 'Click on the map to set the issue location.';
+          saveLocationBtn.style.display = 'none';
+          map.on('click', onMapClick);
+        }
+      }
+
+      function showLocationFeedback(msg, isError) {
+        locationFeedback.textContent = msg;
+        locationFeedback.style.display = 'block';
+        locationFeedback.style.color = isError ? '#c00' : '#1a1a1a';
+      }
+
+      saveLocationBtn.addEventListener('click', function () {
+        if (selectedLat == null || selectedLon == null || !currentIssueId) return;
+        saveLocationBtn.disabled = true;
+        locationFeedback.style.display = 'none';
+        fetch('/api/issues/' + currentIssueId + '/location/', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+          },
+          body: JSON.stringify({ latitude: selectedLat, longitude: selectedLon }),
+          credentials: 'same-origin'
+        })
+          .then(function (res) {
+            if (!res.ok) {
+              return res.json().then(function (data) {
+                var msg = (data && data.detail) ? data.detail : 'Failed to save location.';
+                throw new Error(msg);
+              });
+            }
+            return res.json();
+          })
+          .then(function () {
+            showLocationFeedback('Location saved.', false);
+          })
+          .catch(function (err) {
+            showLocationFeedback(err.message || 'Failed to save location.', true);
+          })
+          .finally(function () {
+            saveLocationBtn.disabled = false;
           });
       });
     })();

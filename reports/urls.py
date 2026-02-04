@@ -10,4 +10,5 @@ urlpatterns = [
     path("", views.index),
     path("report/", views.upload_page),
     path("api/issues/", views.IssueUploadView.as_view()),
+    path("api/issues/<int:pk>/location/", views.IssueLocationView.as_view()),
 ]

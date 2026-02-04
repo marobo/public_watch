@@ -10,13 +10,21 @@ from .utils import extract_gps_from_image
 
 
 class CommunityIssueSerializer(serializers.ModelSerializer):
-    """Accepts image on create; returns id, image_url, status, created_at."""
+    """Accepts image on create; returns id, image_url, status, created_at, optional lat/lon."""
 
     image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = CommunityIssue
-        fields = ("id", "image_url", "status", "created_at", "image")
+        fields = (
+            "id",
+            "image_url",
+            "status",
+            "created_at",
+            "latitude",
+            "longitude",
+            "image",
+        )
         extra_kwargs = {"image": {"write_only": True, "required": True}}
 
     def get_image_url(self, obj):
