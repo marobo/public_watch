@@ -1,5 +1,8 @@
 """
 Reusable utilities for the reports app.
+
+- extract_gps_from_image: Read EXIF GPS from an image and return (lat, lon) in decimal degrees.
+  Returns (None, None) if GPS is missing or unreadable; does not raise.
 """
 
 

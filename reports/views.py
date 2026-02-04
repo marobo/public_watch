@@ -2,6 +2,8 @@
 Views for the reports app.
 """
 
+import logging
+
 from django.http import HttpResponse
 from django.shortcuts import render
 from rest_framework import status
@@ -10,6 +12,8 @@ from rest_framework.views import APIView
 
 from .models import CommunityIssue
 from .serializers import CommunityIssueSerializer
+
+logger = logging.getLogger("reports.upload")
 
 
 def index(request):
@@ -37,10 +41,15 @@ class IssueUploadView(APIView):
     def post(self, request):
         serializer = CommunityIssueSerializer(data=request.data)
         if not serializer.is_valid():
+            logger.warning("Image upload validation failed: %s", serializer.errors)
             return Response(
                 serializer.errors, status=status.HTTP_400_BAD_REQUEST
             )
-        instance = serializer.save()
+        try:
+            instance = serializer.save()
+        except Exception as exc:
+            logger.exception("Image upload save failed: %s", exc)
+            raise
         response_serializer = CommunityIssueSerializer(
             instance, context={"request": request}
         )
@@ -127,6 +136,11 @@ class IssueStatusView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         new_status = request.data.get("status")
+        if new_status is None or new_status == "":
+            return Response(
+                {"detail": "Request body must include 'status'. Example: {\"status\": \"review\"}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if new_status not in ("review", "fixed"):
             return Response(
                 {"detail": "status must be 'review' or 'fixed'."},

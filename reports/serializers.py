@@ -2,11 +2,15 @@
 Serializers for the reports app.
 """
 
+import logging
+
 from rest_framework import serializers
 
 from .models import CommunityIssue
 from .services.ai_analyzer import analyze_image
 from .utils import extract_gps_from_image
+
+logger = logging.getLogger("reports.upload")
 
 
 class CommunityIssueSerializer(serializers.ModelSerializer):
@@ -48,7 +52,11 @@ class CommunityIssueSerializer(serializers.ModelSerializer):
             instance.latitude = lat
             instance.longitude = lon
 
-        analysis = analyze_image(instance.image.path)
+        try:
+            analysis = analyze_image(instance.image.path)
+        except Exception as exc:
+            logger.warning("Image upload: AI analysis failed for issue %s: %s", instance.pk, exc)
+            raise
         instance.main_category = analysis["main_category"]
         instance.sub_category = analysis["sub_category"]
         instance.severity = analysis["severity"]
