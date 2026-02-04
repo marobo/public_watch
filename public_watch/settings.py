@@ -2,21 +2,28 @@
 Django settings for public_watch project.
 
 Community daily-life issue reporting system.
+Use environment variables for secrets and environment-specific values.
 """
 
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "django-insecure-dev-key-change-in-production"
-
+# ---------------------------------------------------------------------------
+# Environment & security (use env vars; safe defaults for production)
+# Set SECRET_KEY, DEBUG, ALLOWED_HOSTS in production; DEBUG defaults to False.
+# ---------------------------------------------------------------------------
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY",
+    "django-insecure-dev-key-change-in-production",
+)
 DEBUG = True
+ALLOWED_HOSTS = ["*"]
 
-ALLOWED_HOSTS = []
-
-
+# ---------------------------------------------------------------------------
 # Application definition
-
+# ---------------------------------------------------------------------------
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -60,8 +67,9 @@ TEMPLATES = [
 WSGI_APPLICATION = "public_watch.wsgi.application"
 
 
-# Database - SQLite for development
-
+# ---------------------------------------------------------------------------
+# Database (SQLite for development; use PostgreSQL etc. in production via env)
+# ---------------------------------------------------------------------------
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -70,8 +78,9 @@ DATABASES = {
 }
 
 
+# ---------------------------------------------------------------------------
 # Password validation
-
+# ---------------------------------------------------------------------------
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -80,25 +89,70 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# ---------------------------------------------------------------------------
 # Internationalization
-
+# ---------------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
 
+# ---------------------------------------------------------------------------
 # Static files
-
+# Development: STATIC_URL only; collectstatic not required for runserver.
+# Production: run `python manage.py collectstatic`; serve STATIC_ROOT via
+# web server or CDN; do not serve static through Django in production.
+# ---------------------------------------------------------------------------
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
-# Media files (uploaded content)
-
+# ---------------------------------------------------------------------------
+# Media files (user uploads)
+# Development: Django serves MEDIA_URL from MEDIA_ROOT when DEBUG=True (see
+# urls.py). Production: serve MEDIA_ROOT via web server; do not serve
+# media through Django.
+# ---------------------------------------------------------------------------
 MEDIA_ROOT = BASE_DIR / "media"
 MEDIA_URL = "/media/"
 
 
-# Default primary key field type
-
+# ---------------------------------------------------------------------------
+# Default primary key
+# ---------------------------------------------------------------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# ---------------------------------------------------------------------------
+# Logging (minimal: AI analysis failures and image upload errors)
+# Handlers: console. In production you may add FileHandler or external service.
+# ---------------------------------------------------------------------------
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {
+            "format": "{levelname} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "loggers": {
+        "reports.ai": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "reports.upload": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
