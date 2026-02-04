@@ -3,6 +3,7 @@ Views for the reports app.
 """
 
 from django.http import HttpResponse
+from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,6 +16,11 @@ def index(request):
     return HttpResponse(
         "Public Watch — Community Issue Reports API. Reports app is ready."
     )
+
+
+def upload_page(request):
+    """Render the frontend upload page."""
+    return render(request, "reports/upload.html")
 
 
 class IssueUploadView(APIView):

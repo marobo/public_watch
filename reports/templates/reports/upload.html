@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>Report an issue — Public Watch</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      line-height: 1.5;
+      max-width: 36rem;
+      margin: 0 auto;
+      padding: 1.5rem;
+      color: #1a1a1a;
+    }
+    h1 { font-size: 1.5rem; margin-top: 0; }
+    .instruction { color: #555; margin-bottom: 1.5rem; }
+    label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
+    input[type="file"] { margin-bottom: 1rem; }
+    button {
+      background: #1a1a1a;
+      color: #fff;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:hover { background: #333; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .result { display: none; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #ddd; }
+    .result.visible { display: block; }
+    .result h2 { font-size: 1.2rem; margin-top: 0; }
+    .result dl { margin: 0; }
+    .result dt { font-weight: 600; margin-top: 0.75rem; color: #555; }
+    .result dd { margin: 0.25rem 0 0 0; }
+    .result img { max-width: 100%; height: auto; border-radius: 4px; margin-top: 0.5rem; }
+    .loading { color: #666; }
+    .error { color: #c00; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Report an issue</h1>
+  <p class="instruction">Upload a photo of a community issue. We’ll analyze it and save your report.</p>
+
+  <form id="upload-form" enctype="multipart/form-data">
+    {% csrf_token %}
+    <label for="image">Image</label>
+    <input type="file" id="image" name="image" accept="image/*" required>
+    <button type="submit" id="submit-btn">Submit</button>
+  </form>
+
+  <p id="loading" class="loading" style="display: none;">Uploading…</p>
+  <p id="error" class="error" style="display: none;"></p>
+
+  <section id="result" class="result">
+    <h2>Result</h2>
+    <dl>
+      <dt>Status</dt>
+      <dd id="result-status">—</dd>
+      <dt>Image</dt>
+      <dd><img id="result-image" src="" alt="Uploaded image"></dd>
+      <dt>Created</dt>
+      <dd id="result-created">—</dd>
+      <dt>Category</dt>
+      <dd id="result-category">—</dd>
+      <dt>Severity</dt>
+      <dd id="result-severity">—</dd>
+      <dt>Description</dt>
+      <dd id="result-description">—</dd>
+    </dl>
+  </section>
+
+  <script>
+    (function () {
+      var form = document.getElementById('upload-form');
+      var submitBtn = document.getElementById('submit-btn');
+      var loading = document.getElementById('loading');
+      var errorEl = document.getElementById('error');
+      var resultSection = document.getElementById('result');
+      var resultStatus = document.getElementById('result-status');
+      var resultImage = document.getElementById('result-image');
+      var resultCreated = document.getElementById('result-created');
+      var resultCategory = document.getElementById('result-category');
+      var resultSeverity = document.getElementById('result-severity');
+      var resultDescription = document.getElementById('result-description');
+
+      function getCsrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) return meta.getAttribute('content');
+        var input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        return input ? input.value : '';
+      }
+
+      function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
+      }
+      function hideError() {
+        errorEl.style.display = 'none';
+        errorEl.textContent = '';
+      }
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        hideError();
+        resultSection.classList.remove('visible');
+
+        var fileInput = document.getElementById('image');
+        if (!fileInput.files.length) {
+          showError('Please choose an image.');
+          return;
+        }
+
+        var formData = new FormData();
+        formData.append('image', fileInput.files[0]);
+        formData.append('csrfmiddlewaretoken', getCsrfToken());
+
+        submitBtn.disabled = true;
+        loading.style.display = 'block';
+
+        fetch('/api/issues/', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-CSRFToken': getCsrfToken()
+          },
+          credentials: 'same-origin'
+        })
+          .then(function (res) {
+            if (!res.ok) {
+              return res.json().then(function (data) {
+                var msg = (data && data.image && data.image[0]) ? data.image[0] : 'Upload failed.';
+                throw new Error(msg);
+              }).catch(function (jsonErr) {
+                if (jsonErr instanceof Error) throw jsonErr;
+                throw new Error('Upload failed.');
+              });
+            }
+            return res.json();
+          })
+          .then(function (data) {
+            resultStatus.textContent = data.status || '—';
+            resultImage.src = data.image_url || '';
+            resultImage.alt = 'Uploaded image';
+            resultCreated.textContent = data.created_at || '—';
+            resultCategory.textContent = '—';
+            resultSeverity.textContent = '—';
+            resultDescription.textContent = '—';
+            resultSection.classList.add('visible');
+          })
+          .catch(function (err) {
+            showError(err.message || 'Something went wrong.');
+          })
+          .finally(function () {
+            submitBtn.disabled = false;
+            loading.style.display = 'none';
+          });
+      });
+    })();
+  </script>
+</body>
+</html>
